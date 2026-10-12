@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Company HR Assistant</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            color: #202938;
+        }
+
+        header {
+            background: #173b67;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        main {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        #chat {
+            background: white;
+            min-height: 350px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px #00000012;
+        }
+
+        .message {
+            margin-bottom: 22px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .user {
+            color: #173b67;
+            font-weight: bold;
+        }
+
+        .assistant {
+            color: #263238;
+        }
+
+        .sources {
+            color: #586579;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid #ccd3dd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 14px 20px;
+            background: #1769aa;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #status {
+            color: #586579;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Company HR Assistant</h1>
+        <p>Ask questions about company policies</p>
+    </header>
+
+    <main>
+        <section id="chat" aria-live="polite">
+            <div class="message assistant">
+                Hello! Ask me a question about the available company policies.
+            </div>
+        </section>
+
+        <form id="questionForm">
+            <input
+                id="question"
+                type="text"
+                placeholder="e.g. How long is maternity leave?"
+                minlength="2"
+                maxlength="1000"
+                required
+            >
+
+            <button id="sendButton" type="submit">
+                Ask
+            </button>
+        </form>
+
+        <div id="status"></div>
+    </main>
+
+    <script>
+        const form = document.getElementById("questionForm");
+        const questionInput = document.getElementById("question");
+        const chat = document.getElementById("chat");
+        const status = document.getElementById("status");
+        const sendButton = document.getElementById("sendButton");
+
+        function addMessage(label, text, className) {
+            const message = document.createElement("div");
+            message.className = "message " + className;
+
+            const heading = document.createElement("div");
+            heading.textContent = label;
+
+            const content = document.createElement("div");
+            content.textContent = text;
+
+            message.append(heading, content);
+            chat.appendChild(message);
+
+            return message;
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const question = questionInput.value.trim();
+
+            if (question.length < 2) {
+                return;
+            }
+
+            addMessage("You", question, "user");
+
+            questionInput.value = "";
+            sendButton.disabled = true;
+            status.textContent = "Searching company policies...";
+
+            try {
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.detail || "Unable to get an answer."
+                    );
+                }
+
+                const message = addMessage(
+                    "HR Assistant",
+                    data.answer,
+                    "assistant"
+                );
+
+                if (data.sources && data.sources.length > 0) {
+                    const sources = document.createElement("div");
+                    sources.className = "sources";
+
+                    sources.textContent = "Sources: " +
+                        data.sources.map(source =>
+                            `${source.document}, page ${source.page}`
+                        ).join("; ");
+
+                    message.appendChild(sources);
+                }
+
+                status.textContent = "";
+
+            } catch (error) {
+                addMessage(
+                    "Error",
+                    error.message,
+                    "assistant"
+                );
+
+                status.textContent = "Please try again.";
+            } finally {
+                sendButton.disabled = false;
+                questionInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
