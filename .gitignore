@@ -16,4 +16,4 @@ __pycache__/
 .DS_Store
 
 # ChromaDB local database
-chroma_db/
+# chroma_db/
